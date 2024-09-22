@@ -11,7 +11,7 @@ cifar = cifar10.Cifar('./cifar-10-python/cifar-10-batches-py')
 # Normalize pixel values to be between 0 and 1
 train_images, test_images = train_images / 255.0, test_images / 255.0
 
-cifar.show_label_images(train_images, train_labels, 20)
+#cifar.show_label_images(train_images, train_labels, 20)
 
 # Convert labels to one-hot encoding
 lb = LabelBinarizer()
@@ -26,11 +26,12 @@ model.add(layers.Conv2D(32, (3, 3), activation='relu', input_shape=(32, 32, 3)))
 model.add(layers.MaxPooling2D((2, 2)))
 
 # Second convolutional layer
-model.add(layers.Conv2D(64, (3, 3), activation='relu'))
+#model.add(layers.Conv2D(64, (3, 3), activation='relu'))
+model.add(layers.MaxPooling2D((2, 2)))
 model.add(layers.MaxPooling2D((2, 2)))
 
 # Third convolutional layer
-model.add(layers.Conv2D(64, (3, 3), activation='relu'))
+#model.add(layers.Conv2D(64, (3, 3), activation='relu'))
 
 # Flatten the output and feed it into a fully connected layer
 model.add(layers.Flatten())
