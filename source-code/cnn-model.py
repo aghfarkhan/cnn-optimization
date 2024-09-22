@@ -1,3 +1,4 @@
+import time
 from keras import layers, models, utils
 to_categorical = utils.to_categorical
 from sklearn.preprocessing import LabelBinarizer
@@ -47,11 +48,23 @@ model.compile(optimizer='adam',
 # Print the model summary
 model.summary()
 
+# Measure training time
+start_time = time.time()  # Start the timer
+
 # Train the model
 model.fit(train_images, train_labels, epochs=10, 
           validation_data=(test_images, test_labels))
 
+# End the timer
+end_time = time.time()
+
+# Calculate total training time
+total_time = end_time - start_time
+
 # Evaluate the model on the test dataset
 test_loss, test_acc = model.evaluate(test_images, test_labels, verbose=2)
 
-print(f'\nTest accuracy: {test_acc}')
+print(f'\nTest accuracy: {test_acc}, '
+      f'Total training time: {total_time:.2f} seconds'
+      #f'\n Weights: {model.weights.}'
+      '')
