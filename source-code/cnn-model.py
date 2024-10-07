@@ -1,8 +1,8 @@
 import time
 import tensorflow as tf
-from keras import layers, models, utils
+from tf_keras import layers, models
 from sklearn.preprocessing import LabelBinarizer
-import tensorflow_model_optimization as tfmot  # For pruning
+import tensorflow_model_optimization as tfmot  # Import for pruning
 
 # Load CIFAR-10 dataset
 from dataset import cifar10
@@ -20,8 +20,14 @@ lb = LabelBinarizer()
 train_labels = lb.fit_transform(train_labels)
 test_labels = lb.transform(test_labels)
 
+# Define pruning callbacks to update the pruning process during training
+callbacks = [
+    tfmot.sparsity.keras.UpdatePruningStep(),
+    tfmot.sparsity.keras.PruningSummaries(log_dir='/tmp/logs')
+]
+
 # Your original CNN model definition
-def build_student_model():
+def build_model():
     student_model = models.Sequential()
     student_model.add(layers.Conv2D(32, (3, 3), activation='relu', input_shape=(32, 32, 3)))
     student_model.add(layers.MaxPooling2D((2, 2)))
@@ -46,7 +52,7 @@ def apply_pruning_to_model(model):
     return model_for_pruning
 
 # Create the student model (your CNN model)
-student_model = build_student_model()
+student_model = build_model()
 
 # Apply pruning
 student_model = apply_pruning_to_model(student_model)
@@ -55,7 +61,7 @@ student_model = apply_pruning_to_model(student_model)
 student_model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
 
 # Create a simple teacher model (your original CNN without pruning for knowledge distillation)
-teacher_model = build_student_model()
+teacher_model = build_model()
 teacher_model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
 
 # Train the teacher model first
@@ -104,7 +110,7 @@ distillation_model.compile(optimizer='adam', metrics=['accuracy'])
 
 # Train the student model using knowledge distillation
 print("Training Student Model with Distillation...")
-distillation_model.fit(train_images, train_labels, epochs=10, validation_data=(test_images, test_labels))
+distillation_model.fit(train_images, train_labels, epochs=10, validation_data=(test_images, test_labels), callbacks=callbacks)
 
 # Strip the pruning wrappers and save the pruned model
 student_model = tfmot.sparsity.keras.strip_pruning(student_model)
