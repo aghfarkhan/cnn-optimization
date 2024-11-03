@@ -3,6 +3,7 @@ import tensorflow as tf
 from tf_keras import layers, models
 from sklearn.preprocessing import LabelBinarizer
 import tensorflow_model_optimization as tfmot  # Import for pruning
+import numpy as np
 
 # Load CIFAR-10 dataset
 from dataset import cifar10
@@ -86,6 +87,11 @@ class DistillationModel(tf.keras.Model):
         self.temperature = temperature
         self.loss_fn = distillation_loss
 
+    def call(self, inputs, training=False):
+        # Defines how the model processes inputs during forward propagation
+        student_output = self.student(inputs, training=training)
+        return student_output
+
     def train_step(self, data):
         x, y = data
 
@@ -114,7 +120,7 @@ distillation_model.fit(train_images, train_labels, epochs=10, validation_data=(t
 
 # Strip the pruning wrappers and save the pruned model
 student_model = tfmot.sparsity.keras.strip_pruning(student_model)
-student_model.save('student_model_pruned.h5')
+student_model.save('student_model_pruned.keras')
 
 # Quantization with TensorFlow Lite
 converter = tf.lite.TFLiteConverter.from_keras_model(student_model)
@@ -123,7 +129,8 @@ converter.optimizations = [tf.lite.Optimize.DEFAULT]
 # Full Integer Quantization using representative dataset
 def representative_dataset_gen():
     for input_value in train_images:
-        yield [input_value.reshape(1, 32, 32, 3)]
+        # Ensure the data type is float32
+        yield [input_value.astype(np.float32).reshape(1, 32, 32, 3)]
 
 converter.representative_dataset = representative_dataset_gen
 tflite_model = converter.convert()
@@ -131,6 +138,9 @@ tflite_model = converter.convert()
 # Save the quantized TFLite model
 with open('student_model_quantized.tflite', 'wb') as f:
     f.write(tflite_model)
+
+# Recompile the student model
+student_model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
 
 # Evaluate the student model on test dataset
 test_loss, test_acc = student_model.evaluate(test_images, test_labels, verbose=2)
