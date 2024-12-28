@@ -4,6 +4,7 @@ from tf_keras import layers, models
 from sklearn.preprocessing import LabelBinarizer
 import tensorflow_model_optimization as tfmot  # Import for pruning
 import numpy as np
+from tf_keras.callbacks import EarlyStopping
 
 # Load CIFAR-10 dataset
 from dataset import cifar10
@@ -22,22 +23,31 @@ train_labels = lb.fit_transform(train_labels)
 test_labels = lb.transform(test_labels)
 
 # Define pruning callbacks to update the pruning process during training
+early_stopping = EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=True)
 callbacks = [
     tfmot.sparsity.keras.UpdatePruningStep(),
-    tfmot.sparsity.keras.PruningSummaries(log_dir='/tmp/logs')
+    tfmot.sparsity.keras.PruningSummaries(log_dir='/tmp/logs'),
+    early_stopping
 ]
 
 # Your original CNN model definition
 def build_model():
     student_model = models.Sequential()
-    student_model.add(layers.Conv2D(32, (3, 3), activation='relu', input_shape=(32, 32, 3)))
+    student_model.add(layers.Conv2D(64, (3, 3), activation='relu', input_shape=(32, 32, 3)))
+    student_model.add(layers.BatchNormalization())  # New
     student_model.add(layers.MaxPooling2D((2, 2)))
-    student_model.add(layers.Conv2D(64, (3, 3), activation='relu'))
+    
+    student_model.add(layers.Conv2D(128, (3, 3), activation='relu'))
+    student_model.add(layers.BatchNormalization())  # New
     student_model.add(layers.MaxPooling2D((2, 2)))
-    student_model.add(layers.Conv2D(64, (3, 3), activation='relu'))
+
+    student_model.add(layers.Conv2D(128, (3, 3), activation='relu'))
+    
     student_model.add(layers.Flatten())
-    student_model.add(layers.Dense(64, activation='relu'))
+    student_model.add(layers.Dense(256, activation='relu'))  # Increased neurons
+    student_model.add(layers.Dropout(0.4))  # New
     student_model.add(layers.Dense(10, activation='softmax'))
+
     return student_model
 
 # Apply pruning to the entire Sequential model
@@ -67,7 +77,7 @@ teacher_model.compile(optimizer='adam', loss='categorical_crossentropy', metrics
 
 # Train the teacher model first
 print("Training Teacher Model...")
-teacher_model.fit(train_images, train_labels, epochs=10, validation_data=(test_images, test_labels))
+teacher_model.fit(train_images, train_labels, epochs=20, validation_data=(test_images, test_labels), callbacks=[early_stopping])
 
 # Knowledge distillation loss function
 def distillation_loss(teacher_logits, student_logits, temperature=5):
@@ -116,7 +126,7 @@ distillation_model.compile(optimizer='adam', metrics=['accuracy'])
 
 # Train the student model using knowledge distillation
 print("Training Student Model with Distillation...")
-distillation_model.fit(train_images, train_labels, epochs=10, validation_data=(test_images, test_labels), callbacks=callbacks)
+distillation_model.fit(train_images, train_labels, epochs=20, validation_data=(test_images, test_labels), callbacks=callbacks)
 
 # Strip the pruning wrappers and save the pruned model
 student_model = tfmot.sparsity.keras.strip_pruning(student_model)
