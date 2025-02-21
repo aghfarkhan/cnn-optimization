@@ -42,7 +42,7 @@ def build_model():
     student_model.add(layers.MaxPooling2D((2, 2)))
 
     student_model.add(layers.Conv2D(128, (3, 3), activation='relu'))
-    
+
     student_model.add(layers.Flatten())
     student_model.add(layers.Dense(256, activation='relu'))  # Increased neurons
     student_model.add(layers.Dropout(0.4))  # New
@@ -78,6 +78,8 @@ teacher_model.compile(optimizer='adam', loss='categorical_crossentropy', metrics
 # Train the teacher model first
 print("Training Teacher Model...")
 teacher_model.fit(train_images, train_labels, epochs=20, validation_data=(test_images, test_labels), callbacks=[early_stopping])
+
+teacher_model.save('teacher_model.keras')
 
 # Knowledge distillation loss function
 def distillation_loss(teacher_logits, student_logits, temperature=5):
